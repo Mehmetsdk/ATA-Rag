@@ -1,16 +1,15 @@
-# TODO: Gerçek üniversite domaini netleşince güncelle
-BASE_URL = "https://example-university.edu"
+BASE_URL = "https://akademiata.pl"
 
 INCLUDE_KEYWORDS = [
-    "admission", "rekrutacja",
-    "tuition", "czesne", "oplaty",
-    "program", "kierunki", "studia",
-    "faculty", "wydzial",
+    "admission", "rekrutacja", "kandydat",
+    "tuition", "czesne", "oplaty", "kalkulator",
+    "oferta", "program", "kierunki", "studia",
+    "faculty", "wydzial", "wladze",
     "contact", "kontakt",
     "regulation", "regulamin",
     "scholarship", "stypendia",
     "erasmus",
-    "student-office", "dziekanat",
+    "student", "dziekanat", "biblioteka", "harmonogram", "kariera", "e-learning",
     "dean", "dziekan",
     "calendar", "kalendarz",
     "faq",

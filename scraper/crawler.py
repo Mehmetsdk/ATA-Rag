@@ -26,6 +26,12 @@ def _allowed_by_robots(base_url: str) -> urllib.robotparser.RobotFileParser:
     return rp
 
 
+def _normalize(url: str) -> str:
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/") or "/"
+    return parsed._replace(path=path, fragment="").geturl()
+
+
 def _is_in_scope(url: str, base_domain: str) -> bool:
     parsed = urlparse(url)
     if parsed.netloc and parsed.netloc != base_domain:
@@ -47,7 +53,7 @@ def crawl(base_url: str = BASE_URL, max_pages: int = MAX_PAGES):
     robots = _allowed_by_robots(base_url)
     headers = {"User-Agent": USER_AGENT}
 
-    seen = {base_url}
+    seen = {_normalize(base_url)}
     queue = [base_url]
     fetched = 0
 
@@ -76,9 +82,10 @@ def crawl(base_url: str = BASE_URL, max_pages: int = MAX_PAGES):
 
         soup = BeautifulSoup(html, "html.parser")
         for a in soup.find_all("a", href=True):
-            next_url = urljoin(url, a["href"]).split("#")[0]
-            if next_url not in seen and _is_in_scope(next_url, base_domain):
-                seen.add(next_url)
+            next_url = urljoin(url, a["href"])
+            normalized = _normalize(next_url)
+            if normalized not in seen and _is_in_scope(next_url, base_domain):
+                seen.add(normalized)
                 queue.append(next_url)
 
         time.sleep(REQUEST_DELAY_SECONDS)
