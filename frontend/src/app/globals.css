@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f4f1;
+  --surface: #ffffff;
+  --surface-muted: #eceae4;
+  --foreground: #1a2433;
+  --muted-foreground: #5a6573;
+  --border: #d7d3ca;
+  --primary: #1c3557;
+  --primary-hover: #162a45;
+  --primary-foreground: #f7f6f3;
+  --accent: #9a7b3c;
+  --accent-soft: #f3ecdc;
+  --danger: #a61b1b;
+  --danger-hover: #8b1616;
+  --danger-soft: #fcebeb;
+  --danger-border: #efc2c2;
+  --success: #1f6b4a;
+  --success-soft: #e8f4ee;
+  --success-border: #b7dcc9;
+  --warning: #8a5a12;
+  --warning-soft: #f8efdf;
+  --warning-border: #e6d2a8;
+  --ring: #2f4f78;
+  --shadow-sm: 0 1px 2px rgb(26 36 51 / 0.05);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-body), "Segoe UI", sans-serif;
+  --font-serif: var(--font-display), Georgia, serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Structural dark tokens prepared for a future dark theme. Light mode remains default. */
+  :root {
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 18%, white);
+  color: var(--foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
