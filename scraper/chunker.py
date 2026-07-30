@@ -69,23 +69,27 @@ def _merge_small_siblings(chunks: list[dict]) -> list[dict]:
     for chunk in chunks:
         parent = chunk["section"].rsplit(" > ", 1)[0] if " > " in chunk["section"] else chunk["section"]
         content = chunk["markdown"]
+        is_short = len(content) < MIN_CHUNK_CHARS
 
         if (
             merged
+            and merged[-1]["_short_group"]
             and merged[-1]["_parent"] == parent
-            and len(content) < MIN_CHUNK_CHARS
+            and is_short
             and len(merged[-1]["markdown"]) + len(content) <= MAX_CHUNK_CHARS
         ):
-            # Folding a short sibling in — the chunk now represents multiple
-            # children, so relabel it with their shared parent.
+            # Previous entry is itself a short sibling (or a group of them) —
+            # safe to fold this one in and relabel with their shared parent.
             merged[-1]["markdown"] += "\n\n" + content
             merged[-1]["section"] = parent
         else:
-            # Solo chunk (so far) — keep its own precise breadcrumb.
-            merged.append({"section": chunk["section"], "markdown": content, "_parent": parent})
+            # Previous entry is a long standalone chunk (or there is none) —
+            # never fold into it, or its precise breadcrumb would be lost.
+            merged.append({"section": chunk["section"], "markdown": content, "_parent": parent, "_short_group": is_short})
 
     for m in merged:
         del m["_parent"]
+        del m["_short_group"]
     return merged
 
 

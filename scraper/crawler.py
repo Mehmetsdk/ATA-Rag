@@ -54,7 +54,7 @@ def crawl(base_url: str = BASE_URL, max_pages: int = MAX_PAGES):
     headers = {"User-Agent": USER_AGENT}
 
     seen = {_normalize(base_url)}
-    queue = [base_url]
+    queue = [_normalize(base_url)]
     fetched = 0
 
     session = requests.Session()
@@ -86,6 +86,6 @@ def crawl(base_url: str = BASE_URL, max_pages: int = MAX_PAGES):
             normalized = _normalize(next_url)
             if normalized not in seen and _is_in_scope(next_url, base_domain):
                 seen.add(normalized)
-                queue.append(next_url)
+                queue.append(normalized)
 
         time.sleep(REQUEST_DELAY_SECONDS)

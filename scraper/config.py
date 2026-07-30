@@ -9,7 +9,7 @@ INCLUDE_KEYWORDS = [
     "regulation", "regulamin",
     "scholarship", "stypendia",
     "erasmus",
-    "student", "dziekanat", "biblioteka", "harmonogram", "kariera", "e-learning",
+    "student", "biblioteka", "harmonogram", "kariera", "e-learning",
     "dean", "dziekan",
     "calendar", "kalendarz",
     "faq",

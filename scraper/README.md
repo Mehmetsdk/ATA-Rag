@@ -24,6 +24,13 @@ python main.py --mode live
 python main.py --mode live --base-url https://gercek-domain.edu.pl
 ```
 
+## Test
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Dosyalar
 
 - `config.py` — hedef domain, include/ignore path kuralları, crawl limitleri
