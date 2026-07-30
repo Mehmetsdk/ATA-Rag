@@ -40,7 +40,7 @@ type MockScenario = {
 const DEFAULT_SOURCES: SourceReference[] = [
   {
     title: "[Demo] Admissions Overview",
-    url: "https://www.ata.edu.pl/admissions",
+    url: "https://akademiata.pl/",
     section: "How to apply",
     excerpt:
       "Demo data: Applicants submit an online application, required documents, and any programme-specific materials by the published deadline.",
@@ -48,7 +48,7 @@ const DEFAULT_SOURCES: SourceReference[] = [
   },
   {
     title: "[Demo] Tuition and Fees",
-    url: "https://www.ata.edu.pl/tuition",
+    url: "https://akademiata.pl/kalkulator-czesnego/",
     section: "Study programmes",
     excerpt:
       "Demo data: Tuition varies by programme and study mode. Computer Science fees are published in the current academic year fee schedule.",
@@ -56,11 +56,11 @@ const DEFAULT_SOURCES: SourceReference[] = [
   },
   {
     title: "[Demo] Student Services Guide",
-    url: "https://www.ata.edu.pl/student-services.pdf",
+    url: "https://akademiata.pl/kontakt/",
     section: "Scholarships",
     excerpt:
       "Demo data: Need-based and merit scholarships are available. Eligibility and application windows are announced each semester.",
-    sourceType: "pdf",
+    sourceType: "website",
   },
 ];
 
@@ -101,7 +101,7 @@ function buildScenario(question: string): MockScenario {
       sources: [
         {
           title: "[Demo] University Offices and Contacts",
-          url: "https://www.ata.edu.pl/contacts",
+          url: "https://akademiata.pl/kontakt/",
           section: "Dean’s office",
           excerpt: "Demo data: Faculty dean’s offices publish location, phone, and reception hours on the contacts page.",
           sourceType: "website",
@@ -118,7 +118,7 @@ function buildScenario(question: string): MockScenario {
       sources: [
         {
           title: "[Demo] Academic Calendar",
-          url: "https://www.ata.edu.pl/academic-calendar",
+          url: "https://akademiata.pl/",
           section: "Semester dates",
           excerpt: "Demo data: The academic calendar lists semester start and end dates, examination periods, and holidays.",
           sourceType: "website",
