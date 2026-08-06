@@ -55,14 +55,18 @@ Mock behaviour:
 - 700–1200 ms simulated latency
 - Realistic answers and 1–3 sources for common university questions
 - Sources are labeled **Demo sources** in the UI and titled with `[Demo]`
+- Demo source URLs use the confirmed domain `https://akademiata.pl` (not `ata.edu.pl` / `akademiata.edu.pl`)
+- Every successful response includes a stable `queryId`
+- Prior conversation `history` is accepted (max 8 messages) and reflected in the mock answer text
+- Thumbs up/down calls `submitMockFeedback` with `{ queryId, rating }` only
 - Query `trigger error` → backend-unavailable error (for testing)
-- Query `question with no sources` → answer with an empty source list
+- Query `question with no sources` → answer with an empty source list (still has `queryId`)
 
 Components never choose mock vs real API. That decision lives in `src/lib/api/chat-client.ts`.
 
 ## Connect the FastAPI backend
 
-1. Start the API so `POST /api/chat` is available and CORS allows your frontend origin.
+1. Start the API so `POST /api/chat` and `POST /api/feedback` are available and CORS allows your frontend origin. See `backend/README.md`.
 2. Update `.env.local`:
 
 ```env
@@ -72,18 +76,27 @@ NEXT_PUBLIC_USE_MOCK_API=false
 
 3. Restart the Next.js dev server (or rebuild for production).
 
-The client calls `${NEXT_PUBLIC_API_BASE_URL}/api/chat` after normalizing the base URL (no double slash).
+The client calls:
 
-Expected request body:
+- `${NEXT_PUBLIC_API_BASE_URL}/api/chat`
+- `${NEXT_PUBLIC_API_BASE_URL}/api/feedback`
+
+### Chat request
 
 ```json
 {
   "question": "How much is Computer Science tuition?",
-  "language": "en"
+  "language": "en",
+  "history": [
+    { "role": "user", "content": "How do I apply?" },
+    { "role": "assistant", "content": "Complete the online application form…" }
+  ]
 }
 ```
 
-Expected response shape:
+`history` contains **prior completed turns only** (not the current question), max **8** messages. The first message sends `"history": []`.
+
+### Chat response
 
 ```json
 {
@@ -91,18 +104,42 @@ Expected response shape:
   "sources": [
     {
       "title": "Computer Science Tuition",
-      "url": "https://example.edu/tuition",
+      "url": "https://akademiata.pl/kalkulator-czesnego/",
       "section": "Fees",
       "excerpt": "Optional source excerpt",
       "source_type": "website"
     }
   ],
   "confidence": 0.84,
-  "latency_ms": 1430
+  "latency_ms": 1430,
+  "query_id": "backend-generated-id"
 }
 ```
 
-Snake_case fields are normalized to camelCase in `src/lib/api/chat-mapper.ts` before reaching UI components.
+`mapChatResponse` rejects payloads without a valid `query_id`. The UI stores `queryId` on the assistant message for feedback.
+
+### Feedback request
+
+```json
+{
+  "query_id": "backend-generated-id",
+  "rating": "up",
+  "comment": null
+}
+```
+
+### Feedback response
+
+```json
+{
+  "success": true,
+  "feedback_id": "feedback-record-id"
+}
+```
+
+Feedback controls appear only for completed assistant answers that have a `queryId`. Votes may change from up→down (and vice versa). Pending requests block duplicates; failures keep the answer and show an accessible retry.
+
+Snake_case fields are normalized to camelCase in `src/lib/api/chat-mapper.ts`. Canonical contract: [CONTRACTS.md](../CONTRACTS.md) §3.
 
 ## Scripts
 
@@ -110,7 +147,7 @@ Snake_case fields are normalized to camelCase in `src/lib/api/chat-mapper.ts` be
 npm run dev        # development server
 npm run lint       # ESLint
 npm run typecheck  # TypeScript (--noEmit)
-npm test           # focused unit tests (Node test runner)
+npm test           # unit + contract tests (Node test runner)
 npm run build      # production build
 npm run start      # serve production build
 ```
@@ -122,12 +159,12 @@ src/
   app/                 # routes + global styles
   components/
     layout/            # reusable shell (header/footer)
-    chat/              # chatbot UI
+    chat/              # chatbot UI (incl. answer feedback controls)
     ui/                # shared primitives
-  hooks/               # useChat, auto-scroll
+  hooks/               # useChat (history + feedback), auto-scroll
   lib/
     api/               # client, mapper, errors, mock
-    chat/              # constants + helpers
+    chat/              # constants, history, feedback helpers
     config/            # typed env
   types/               # domain types
 ```

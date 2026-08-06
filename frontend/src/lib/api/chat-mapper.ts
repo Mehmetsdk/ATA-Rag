@@ -1,8 +1,11 @@
 import type {
   ChatResponse,
   ConfidenceLevel,
+  FeedbackRating,
+  FeedbackResponse,
   RawChatResponse,
   RawChatSource,
+  RawFeedbackResponse,
   SourceReference,
 } from "@/types/chat";
 import { ChatApiError, getErrorMessage } from "@/lib/api/chat-errors";
@@ -114,7 +117,18 @@ export function confidenceLabel(level: ConfidenceLevel): string {
 }
 
 /**
+ * Runtime validation for feedback rating (CONTRACTS.md §3.2).
+ */
+export function assertValidFeedbackRating(rating: unknown): FeedbackRating {
+  if (rating === "up" || rating === "down") {
+    return rating;
+  }
+  throw new ChatApiError("invalid_response", getErrorMessage("invalid_response"));
+}
+
+/**
  * Normalize a raw backend (snake_case) response into frontend domain types.
+ * Requires a non-empty query_id on every successful payload.
  */
 export function mapChatResponse(raw: unknown): ChatResponse {
   // Arrays are typeof "object" in JS — reject them explicitly.
@@ -124,6 +138,10 @@ export function mapChatResponse(raw: unknown): ChatResponse {
 
   const payload = raw as RawChatResponse;
   const answer = asOptionalString(payload.answer) ?? "";
+  const queryId = asOptionalString(payload.query_id);
+  if (!queryId) {
+    throw new ChatApiError("invalid_response", getErrorMessage("invalid_response"));
+  }
 
   let sources: SourceReference[] = [];
   if (Array.isArray(payload.sources)) {
@@ -147,5 +165,27 @@ export function mapChatResponse(raw: unknown): ChatResponse {
     sources,
     confidence,
     latencyMs,
+    queryId,
   };
+}
+
+/**
+ * Normalize a raw feedback response into the frontend domain type.
+ */
+export function mapFeedbackResponse(raw: unknown): FeedbackResponse {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new ChatApiError("invalid_response", getErrorMessage("invalid_response"));
+  }
+
+  const payload = raw as RawFeedbackResponse;
+  if (payload.success !== true) {
+    throw new ChatApiError("invalid_response", getErrorMessage("invalid_response"));
+  }
+
+  const feedbackId = asOptionalString(payload.feedback_id);
+  if (!feedbackId) {
+    throw new ChatApiError("invalid_response", getErrorMessage("invalid_response"));
+  }
+
+  return { success: true, feedbackId };
 }

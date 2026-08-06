@@ -9,6 +9,11 @@ export const COMPOSER_PLACEHOLDER =
 export const MAX_QUESTION_LENGTH = 1500;
 export const CHARACTER_COUNTER_THRESHOLD = 1200;
 
+/** Max prior-turn messages included in /api/chat history (CONTRACTS.md). */
+export const MAX_HISTORY_MESSAGES = 8;
+/** Max characters per history message content (CONTRACTS.md). */
+export const MAX_HISTORY_CONTENT_LENGTH = 2000;
+
 export const REQUEST_TIMEOUT_MS = 30_000;
 
 export const SUGGESTED_QUESTIONS = [

@@ -4,7 +4,14 @@ import {
 } from "@/lib/chat/constants";
 import { normalizeQuestion } from "@/lib/chat/normalize-question";
 import { ChatApiError, getErrorMessage } from "@/lib/api/chat-errors";
-import type { ChatRequest, ChatResponse, SourceReference } from "@/types/chat";
+import { assertValidFeedbackRating } from "@/lib/api/chat-mapper";
+import type {
+  ChatRequest,
+  ChatResponse,
+  FeedbackRequest,
+  FeedbackResponse,
+  SourceReference,
+} from "@/types/chat";
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -29,6 +36,24 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 
 function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Stable UUID-shaped query id for identical mock inputs (CONTRACTS.md query_id).
+ */
+export function stableMockQueryId(question: string, historyLength: number): string {
+  const seed = `${normalizeQuestion(question)}|${historyLength}`;
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const hex = (hash >>> 0).toString(16).padStart(8, "0");
+  let extended = hex;
+  while (extended.length < 12) {
+    extended += hex;
+  }
+  return `mock0000-0000-4000-8000-${extended.slice(0, 12)}`;
 }
 
 type MockScenario = {
@@ -103,7 +128,8 @@ function buildScenario(question: string): MockScenario {
           title: "[Demo] University Offices and Contacts",
           url: "https://akademiata.pl/kontakt/",
           section: "Dean’s office",
-          excerpt: "Demo data: Faculty dean’s offices publish location, phone, and reception hours on the contacts page.",
+          excerpt:
+            "Demo data: Faculty dean’s offices publish location, phone, and reception hours on the contacts page.",
           sourceType: "website",
         },
       ],
@@ -120,7 +146,8 @@ function buildScenario(question: string): MockScenario {
           title: "[Demo] Academic Calendar",
           url: "https://akademiata.pl/",
           section: "Semester dates",
-          excerpt: "Demo data: The academic calendar lists semester start and end dates, examination periods, and holidays.",
+          excerpt:
+            "Demo data: The academic calendar lists semester start and end dates, examination periods, and holidays.",
           sourceType: "website",
         },
       ],
@@ -145,6 +172,16 @@ function buildScenario(question: string): MockScenario {
   };
 }
 
+type MockFeedbackEntry = {
+  queryId: string;
+  rating: "up" | "down";
+  comment: string | null;
+  feedbackId: string;
+};
+
+/** In-memory mock feedback store keyed by query_id (upsert semantics). */
+const mockFeedbackByQueryId = new Map<string, MockFeedbackEntry>();
+
 /**
  * Mock chat adapter used when NEXT_PUBLIC_USE_MOCK_API=true.
  * Keeps realistic latency and supports test queries for error / empty-source paths.
@@ -158,6 +195,8 @@ export async function askMockChat(
   await delay(waitMs, options?.signal);
 
   const normalized = normalizeQuestion(request.question);
+  const historyCount = request.history?.length ?? 0;
+  const queryId = stableMockQueryId(request.question, historyCount);
 
   if (normalized === normalizeQuestion(MOCK_ERROR_QUERY)) {
     throw new ChatApiError("unavailable", getErrorMessage("unavailable"), 503);
@@ -170,15 +209,50 @@ export async function askMockChat(
       sources: [],
       confidence: 0.42,
       latencyMs: Math.round(performance.now() - started),
+      queryId,
     };
   }
 
   const scenario = buildScenario(request.question);
+  const historySuffix =
+    historyCount > 0
+      ? ` I also considered ${historyCount} earlier message${historyCount === 1 ? "" : "s"} in this conversation.`
+      : "";
 
   return {
-    answer: scenario.answer,
+    answer: `${scenario.answer}${historySuffix}`,
     sources: scenario.sources,
     confidence: scenario.confidence,
     latencyMs: Math.round(performance.now() - started),
+    queryId,
   };
+}
+
+export async function submitMockFeedback(request: FeedbackRequest): Promise<FeedbackResponse> {
+  await delay(randomBetween(120, 280));
+  const rating = assertValidFeedbackRating(request.rating);
+  const queryId = request.queryId?.trim();
+  if (!queryId) {
+    throw new ChatApiError("invalid_response", getErrorMessage("invalid_response"));
+  }
+
+  const existing = mockFeedbackByQueryId.get(queryId);
+  const feedbackId = existing?.feedbackId ?? `fb_mock_${queryId.slice(-12)}`;
+  mockFeedbackByQueryId.set(queryId, {
+    queryId,
+    rating,
+    comment: request.comment ?? null,
+    feedbackId,
+  });
+
+  return { success: true, feedbackId };
+}
+
+/** Test helper — not used by UI. */
+export function getMockFeedbackLog(): MockFeedbackEntry[] {
+  return Array.from(mockFeedbackByQueryId.values());
+}
+
+export function clearMockFeedbackLog() {
+  mockFeedbackByQueryId.clear();
 }
