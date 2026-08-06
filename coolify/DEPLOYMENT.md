@@ -1,11 +1,32 @@
+[DEPLOYMENT.md](https://github.com/user-attachments/files/30794374/DEPLOYMENT.md)
 # Coolify Deployment Guide
 
 Person 4 (Infrastructure) — deployment documentation for ATA-RAG.
 
 ## Overview
 
-Coolify deploys the ATA-RAG stack from this `infra/` directory using Docker Compose.
-Teammate services (backend, frontend, scraper) are added as their Dockerfiles become available.
+Coolify deploys the ATA-RAG stack from the **repository root** using Docker Compose.
+Person 4's infrastructure files live alongside teammate directories (`scraper/`, `backend/`, `frontend/`).
+Teammate services (backend, frontend, scraper) are added to compose as their Dockerfiles become available.
+
+## Repository layout (Person 4)
+
+Infrastructure files are committed at the repo root — there is no separate `infra/` folder:
+
+```
+ATA-Rag/                          # repository root
+├── docker-compose.yml            # local dev stack
+├── docker-compose.prod.yml       # production overrides
+├── .env.example                  # unified env template
+├── dashboard/                    # copy dashboard/src/ → frontend/src/
+├── integration/                  # mock API + CONTRACTS_DASHBOARD.md
+├── observability/                # Python observability package
+├── coolify/
+│   └── DEPLOYMENT.md             # this file
+├── scraper/                      # Person 1
+├── backend/                      # Person 2
+└── frontend/                     # Person 3
+```
 
 ## Prerequisites
 
@@ -15,24 +36,9 @@ Teammate services (backend, frontend, scraper) are added as their Dockerfiles be
 
 ## Deployment steps
 
-### 1. Copy infra into the repository
+### 1. Configure environment variables
 
-Copy the contents of Folder B into the repo's `infra/` directory:
-
-```
-infra/
-├── docker-compose.yml
-├── docker-compose.prod.yml
-├── .env.example
-├── dashboard/
-├── integration/
-├── observability/
-└── coolify/
-```
-
-### 2. Configure environment variables
-
-In Coolify, set environment variables from `.env.example`:
+In Coolify, set environment variables from `.env.example` at the repository root:
 
 | Variable | Required | Description |
 |---|---|---|
@@ -49,17 +55,17 @@ In Coolify, set environment variables from `.env.example`:
 
 Never commit secrets. Set all sensitive values in the Coolify UI.
 
-### 3. Deploy with Compose
+### 2. Deploy with Compose
 
 In Coolify:
 
 1. Create a new **Docker Compose** resource
-2. Point to `infra/docker-compose.yml`
-3. Add production override: `infra/docker-compose.prod.yml`
-4. Set environment variables from step 2
+2. Point to `docker-compose.yml` at the **repository root**
+3. Add production override: `docker-compose.prod.yml` (same root)
+4. Set environment variables from step 1
 5. Deploy
 
-### 4. Health checks
+### 3. Health checks
 
 Coolify uses Docker health checks defined in compose:
 
@@ -70,7 +76,7 @@ Coolify uses Docker health checks defined in compose:
 | `backend` (future) | `GET /health` | HTTP 200 |
 | `frontend` (future) | HTTP GET on port 3000 | HTTP 200 |
 
-### 5. Service startup order
+### 4. Service startup order
 
 ```
 postgres (healthy) → mock-api / backend → frontend
@@ -84,7 +90,7 @@ Coolify respects `depends_on` with health conditions in `docker-compose.yml`.
 - [ ] Set `NEXT_PUBLIC_USE_MOCK_API=false`
 - [ ] Set `NEXT_PUBLIC_USE_MOCK_DASHBOARD=false`
 - [ ] Configure SSL/TLS via Coolify reverse proxy
-- [ ] Do not expose PostgreSQL port publicly
+- [ ] Do not expose PostgreSQL port publicly (`docker-compose.prod.yml` removes the postgres port mapping)
 - [ ] Add authentication to `/api/admin/*` routes before public deployment
 - [ ] Person 3 deploys frontend with production build args
 - [ ] Person 2 imports `observability/` package for logging and metrics
@@ -108,7 +114,7 @@ Person 4 does **not** create these Dockerfiles.
 # - Install observability: pip install -e ./observability
 # - Expose port 8000
 # - Implement GET /health using ata_observability.health.HealthChecker
-# - Implement /api/admin/* per CONTRACTS_DASHBOARD.md
+# - Implement /api/admin/* per integration/CONTRACTS_DASHBOARD.md
 # - Implement POST /api/chat per CONTRACTS.md
 ```
 
@@ -117,7 +123,7 @@ Person 4 does **not** create these Dockerfiles.
 ```dockerfile
 # Person 3 should:
 # - Pass NEXT_PUBLIC_* as build args
-# - Copy dashboard files from infra/dashboard/src/ into frontend/src/
+# - Copy dashboard files from dashboard/src/ into frontend/src/
 # - Enable dashboard nav link in app-header.tsx
 # - Expose port 3000
 ```
@@ -139,3 +145,4 @@ When Person 2's backend is deployed:
 | CORS errors | Add frontend URL to `CORS_ORIGINS` on the API service |
 | Postgres connection refused | Wait for health check; verify `DATABASE_URL` host is `postgres` |
 | Mock data in production | Set `NEXT_PUBLIC_USE_MOCK_DASHBOARD=false` and rebuild frontend |
+| Coolify cannot find compose file | Ensure the resource points at repo-root `docker-compose.yml`, not a non-existent `infra/` path |
