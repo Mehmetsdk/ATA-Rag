@@ -22,7 +22,21 @@ MVP teslim: Pazartesi 20:00 (kesin tarih Piotr'dan teyit edilecek).
 
 ```
 scraper/    # Kişi 1
-backend/    # Kişi 2
+backend/    # Kişi 2 — POST /api/chat + POST /api/feedback (+ query log / feedback persistence)
 frontend/   # Kişi 3
 infra/      # Kişi 4
 ```
+
+## Hızlı doğrulama
+
+```bash
+# Frontend
+cd frontend && npm ci && npm run typecheck && npm run lint && npm test && npm run build
+
+# Backend (contract + integration; isolated SQLite in tests)
+cd backend && pip install -r requirements.txt && python -m pytest -q
+```
+
+## Not
+
+Bu branch'te backend **query log + feedback** repository'sini (SQLite) ve HTTP sözleşmesini sağlar. Embedding / pgvector retrieval / LLM henüz bağlı değildir — ayrıntı için `backend/README.md` ve `CONTRACTS.md`.
