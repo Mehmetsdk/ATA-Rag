@@ -1,4 +1,4 @@
-[DEPLOYMENT.md](https://github.com/user-attachments/files/30794374/DEPLOYMENT.md)
+[DEPLOYMENT.md](https://github.com/user-attachments/files/30796183/DEPLOYMENT.md)
 # Coolify Deployment Guide
 
 Person 4 (Infrastructure) — deployment documentation for ATA-RAG.
