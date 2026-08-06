@@ -1,10 +1,14 @@
+[INTEGRATION.md](https://github.com/user-attachments/files/30794409/INTEGRATION.md)
 # Dashboard Integration Guide
 
 Copy the contents of `dashboard/src/` into the existing Next.js frontend (`frontend/src/`).
 
 ## Files to copy
 
-| Source (Folder B) | Destination (repo) |
+Person 4's dashboard source lives at the **repository root** in `dashboard/src/`.
+Copy each file into the existing Next.js frontend (`frontend/src/`):
+
+| Source (repo root) | Destination |
 |---|---|
 | `dashboard/src/app/dashboard/page.tsx` | `frontend/src/app/dashboard/page.tsx` |
 | `dashboard/src/components/dashboard/*` | `frontend/src/components/dashboard/*` |
