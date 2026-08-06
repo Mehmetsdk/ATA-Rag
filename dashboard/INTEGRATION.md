@@ -1,4 +1,4 @@
-[INTEGRATION.md](https://github.com/user-attachments/files/30796197/INTEGRATION.md)
+[INTEGRATION.md](https://github.com/user-attachments/files/30796562/INTEGRATION.md)
 # Dashboard Integration Guide
 
 Person 4's dashboard source lives at the **repository root** in `dashboard/src/`.
