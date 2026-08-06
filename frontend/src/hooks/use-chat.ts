@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { askChat } from "@/lib/api/chat-client";
+import { askChat, submitFeedback } from "@/lib/api/chat-client";
 import { ChatApiError, getErrorMessage } from "@/lib/api/chat-errors";
+import { assertValidFeedbackRating } from "@/lib/api/chat-mapper";
 import { DEFAULT_LANGUAGE, EMPTY_ANSWER_MESSAGE } from "@/lib/chat/constants";
+import { canSubmitFeedback } from "@/lib/chat/feedback-state";
+import { buildChatHistory, buildRetryHistory } from "@/lib/chat/history";
 import { isBlankQuestion } from "@/lib/chat/normalize-question";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatHistoryMessage, ChatMessage, FeedbackRating } from "@/types/chat";
 
 function createId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -13,6 +16,9 @@ function createId(): string {
   }
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
+
+export const FEEDBACK_ERROR_MESSAGE =
+  "Could not save your feedback. Please try again.";
 
 export type UseChatResult = {
   messages: ChatMessage[];
@@ -22,6 +28,7 @@ export type UseChatResult = {
   retryLastFailed: () => Promise<void>;
   resetConversation: () => void;
   canSubmit: (question: string) => boolean;
+  submitAnswerFeedback: (messageId: string, rating: FeedbackRating) => Promise<void>;
 };
 
 export function useChat(): UseChatResult {
@@ -33,10 +40,12 @@ export function useChat(): UseChatResult {
   const lastUserQuestionRef = useRef<string | null>(null);
   const requestIdRef = useRef(0);
   const inFlightRef = useRef(false);
+  const messagesRef = useRef<ChatMessage[]>([]);
+
+  messagesRef.current = messages;
 
   const canSubmit = useCallback(
     (question: string) => {
-      // Block only while a request is in flight — same question may be asked again after completion.
       if (inFlightRef.current || isLoading) return false;
       if (isBlankQuestion(question)) return false;
       return true;
@@ -44,98 +53,109 @@ export function useChat(): UseChatResult {
     [isLoading],
   );
 
-  const runRequest = useCallback(async (question: string, assistantId: string) => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const requestId = ++requestIdRef.current;
+  const runRequest = useCallback(
+    async (question: string, assistantId: string, history: ChatHistoryMessage[]) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const requestId = ++requestIdRef.current;
 
-    inFlightRef.current = true;
-    setIsLoading(true);
-    setStatusMessage("Searching university sources…");
+      inFlightRef.current = true;
+      setIsLoading(true);
+      setStatusMessage("Searching university sources…");
 
-    try {
-      const response = await askChat(
-        { question, language: DEFAULT_LANGUAGE },
-        { signal: controller.signal },
-      );
+      try {
+        const response = await askChat(
+          { question, language: DEFAULT_LANGUAGE, history },
+          { signal: controller.signal },
+        );
 
-      if (requestId !== requestIdRef.current) return;
+        if (requestId !== requestIdRef.current) return;
 
-      if (!response.answer.trim()) {
-        throw new ChatApiError("empty_answer", getErrorMessage("empty_answer"));
-      }
+        if (!response.answer.trim()) {
+          throw new ChatApiError("empty_answer", getErrorMessage("empty_answer"));
+        }
 
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.id === assistantId
-            ? {
-                ...message,
-                content: response.answer,
-                sources: response.sources,
-                confidence: response.confidence,
-                latencyMs: response.latencyMs,
-                status: "complete",
-                errorCode: null,
-              }
-            : message,
-        ),
-      );
-      setStatusMessage(null);
-    } catch (error) {
-      if (requestId !== requestIdRef.current) return;
-
-      if (error instanceof ChatApiError && error.code === "cancelled") {
         setMessages((prev) =>
           prev.map((message) =>
-            message.id === assistantId && message.status === "pending"
+            message.id === assistantId
               ? {
                   ...message,
-                  content: getErrorMessage("cancelled"),
-                  status: "error",
-                  errorCode: "cancelled",
+                  content: response.answer,
+                  sources: response.sources,
+                  confidence: response.confidence,
+                  latencyMs: response.latencyMs,
+                  queryId: response.queryId,
+                  status: "complete",
+                  errorCode: null,
+                  feedbackRating: null,
+                  feedbackPending: false,
+                  feedbackError: null,
+                  feedbackId: null,
+                  feedbackLastAttempt: null,
                 }
               : message,
           ),
         );
         setStatusMessage(null);
-        return;
+      } catch (error) {
+        if (requestId !== requestIdRef.current) return;
+
+        if (error instanceof ChatApiError && error.code === "cancelled") {
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.id === assistantId && message.status === "pending"
+                ? {
+                    ...message,
+                    content: getErrorMessage("cancelled"),
+                    status: "error",
+                    errorCode: "cancelled",
+                    queryId: null,
+                  }
+                : message,
+            ),
+          );
+          setStatusMessage(null);
+          return;
+        }
+
+        const apiError =
+          error instanceof ChatApiError
+            ? error
+            : new ChatApiError("unknown", getErrorMessage("unknown"));
+
+        const content =
+          apiError.code === "empty_answer" ? EMPTY_ANSWER_MESSAGE : getErrorMessage(apiError.code);
+
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === assistantId
+              ? {
+                  ...message,
+                  content,
+                  status: "error",
+                  errorCode: apiError.code,
+                  sources: [],
+                  confidence: null,
+                  latencyMs: null,
+                  queryId: null,
+                }
+              : message,
+          ),
+        );
+        setStatusMessage(content);
+      } finally {
+        if (requestId !== requestIdRef.current) return;
+
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
+        inFlightRef.current = false;
+        setIsLoading(false);
       }
-
-      const apiError =
-        error instanceof ChatApiError
-          ? error
-          : new ChatApiError("unknown", getErrorMessage("unknown"));
-
-      const content =
-        apiError.code === "empty_answer" ? EMPTY_ANSWER_MESSAGE : getErrorMessage(apiError.code);
-
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.id === assistantId
-            ? {
-                ...message,
-                content,
-                status: "error",
-                errorCode: apiError.code,
-                sources: [],
-                confidence: null,
-                latencyMs: null,
-              }
-            : message,
-        ),
-      );
-      setStatusMessage(content);
-    } finally {
-      if (requestId !== requestIdRef.current) return;
-
-      if (abortRef.current === controller) {
-        abortRef.current = null;
-      }
-      inFlightRef.current = false;
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const sendMessage = useCallback(
     async (rawQuestion: string) => {
@@ -146,6 +166,8 @@ export function useChat(): UseChatResult {
       inFlightRef.current = true;
 
       lastUserQuestionRef.current = question;
+
+      const history = buildChatHistory(messagesRef.current);
 
       const now = new Date().toISOString();
       const userMessage: ChatMessage = {
@@ -165,7 +187,7 @@ export function useChat(): UseChatResult {
       };
 
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
-      await runRequest(question, assistantMessage.id);
+      await runRequest(question, assistantMessage.id, history);
     },
     [canSubmit, runRequest],
   );
@@ -184,6 +206,8 @@ export function useChat(): UseChatResult {
 
     inFlightRef.current = true;
 
+    const history = buildRetryHistory(messages, failedAssistant.id);
+
     setMessages((prev) =>
       prev.map((message) =>
         message.id === failedAssistant.id
@@ -195,12 +219,18 @@ export function useChat(): UseChatResult {
               sources: [],
               confidence: null,
               latencyMs: null,
+              queryId: null,
+              feedbackRating: null,
+              feedbackPending: false,
+              feedbackError: null,
+              feedbackId: null,
+              feedbackLastAttempt: null,
             }
           : message,
       ),
     );
 
-    await runRequest(question, failedAssistant.id);
+    await runRequest(question, failedAssistant.id, history);
   }, [isLoading, messages, runRequest]);
 
   const resetConversation = useCallback(() => {
@@ -214,6 +244,74 @@ export function useChat(): UseChatResult {
     setStatusMessage(null);
   }, []);
 
+  const submitAnswerFeedback = useCallback(
+    async (messageId: string, rating: FeedbackRating) => {
+      const current = messagesRef.current.find((message) => message.id === messageId);
+      if (!canSubmitFeedback(current, rating)) {
+        return;
+      }
+
+      let validated: FeedbackRating;
+      try {
+        validated = assertValidFeedbackRating(rating);
+      } catch {
+        return;
+      }
+
+      const queryId = current!.queryId!.trim();
+
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                feedbackPending: true,
+                feedbackError: null,
+                feedbackLastAttempt: validated,
+              }
+            : message,
+        ),
+      );
+
+      try {
+        const result = await submitFeedback({
+          queryId,
+          rating: validated,
+          comment: null,
+        });
+
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === messageId
+              ? {
+                  ...message,
+                  feedbackRating: validated,
+                  feedbackPending: false,
+                  feedbackError: null,
+                  feedbackId: result.feedbackId,
+                  feedbackLastAttempt: validated,
+                }
+              : message,
+          ),
+        );
+      } catch {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === messageId
+              ? {
+                  ...message,
+                  feedbackPending: false,
+                  feedbackError: FEEDBACK_ERROR_MESSAGE,
+                  feedbackLastAttempt: validated,
+                }
+              : message,
+          ),
+        );
+      }
+    },
+    [],
+  );
+
   return {
     messages,
     isLoading,
@@ -222,5 +320,6 @@ export function useChat(): UseChatResult {
     retryLastFailed,
     resetConversation,
     canSubmit,
+    submitAnswerFeedback,
   };
 }

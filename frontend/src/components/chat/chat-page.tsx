@@ -18,6 +18,7 @@ export function ChatPage() {
     retryLastFailed,
     resetConversation,
     canSubmit,
+    submitAnswerFeedback,
   } = useChat();
 
   const hasMessages = messages.length > 0;
@@ -55,6 +56,9 @@ export function ChatPage() {
         messages={messages}
         onRetry={retryLastFailed}
         retryDisabled={isLoading}
+        onFeedback={(messageId, rating) => {
+          void submitAnswerFeedback(messageId, rating);
+        }}
       />
 
       <div className="sr-only" aria-live="polite" aria-atomic="true">

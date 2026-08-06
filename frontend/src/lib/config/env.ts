@@ -62,11 +62,21 @@ export function assertApiConfigured(env: PublicEnv = getPublicEnv()): string {
   return env.apiBaseUrl;
 }
 
-/** Build the chat endpoint URL with exactly one slash before /api/chat. */
-export function buildChatEndpoint(apiBaseUrl: string): string {
+function buildApiPath(apiBaseUrl: string, path: string): string {
   const base = normalizeApiBaseUrl(apiBaseUrl);
   if (!base) {
     throw new ChatApiError("config", getErrorMessage("config"));
   }
-  return `${base}/api/chat`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}
+
+/** Build the chat endpoint URL with exactly one slash before /api/chat. */
+export function buildChatEndpoint(apiBaseUrl: string): string {
+  return buildApiPath(apiBaseUrl, "/api/chat");
+}
+
+/** Build the feedback endpoint URL (CONTRACTS.md §3.2). */
+export function buildFeedbackEndpoint(apiBaseUrl: string): string {
+  return buildApiPath(apiBaseUrl, "/api/feedback");
 }
