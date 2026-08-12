@@ -1,0 +1,18 @@
+[project]
+name = "ata-observability"
+version = "0.1.0"
+description = "Observability utilities for ATA University RAG project"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+fastapi = ["fastapi>=0.110", "starlette>=0.36"]
+postgres = ["asyncpg>=0.29"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ata_observability*"]
