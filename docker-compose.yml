@@ -1,0 +1,110 @@
+# ATA-RAG — Local Development Stack
+#
+# Person 4 (Infrastructure) — orchestrates shared services.
+#
+# Teammate-owned services (backend, frontend, scraper) are documented below
+# but NOT built here. Each teammate provides their own Dockerfile when ready.
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d
+#
+# Services started by this compose file:
+#   - postgres   (PostgreSQL + pgvector)
+#   - mock-api   (temporary dashboard/health mock — Person 4)
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: atarag-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-atarag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atarag_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-atarag}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atarag} -d ${POSTGRES_DB:-atarag}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  mock-api:
+    build:
+      context: ./integration
+      dockerfile: Dockerfile
+    container_name: atarag-mock-api
+    restart: unless-stopped
+    environment:
+      PORT: ${MOCK_API_PORT:-8000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "${MOCK_API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Teammate services — uncomment when Dockerfiles are available
+  # ---------------------------------------------------------------------------
+  #
+  # backend:
+  #   # TODO (Person 2): Add Dockerfile at backend/Dockerfile
+  #   build:
+  #     context: ../backend
+  #     dockerfile: Dockerfile
+  #   container_name: atarag-backend
+  #   restart: unless-stopped
+  #   environment:
+  #     DATABASE_URL: ${DATABASE_URL}
+  #     OPENAI_API_KEY: ${OPENAI_API_KEY}
+  #     LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  #   ports:
+  #     - "${BACKEND_PORT:-8000}:8000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #
+  # frontend:
+  #   # TODO (Person 3): Add Dockerfile at frontend/Dockerfile
+  #   build:
+  #     context: ../frontend
+  #     dockerfile: Dockerfile
+  #     args:
+  #       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+  #       NEXT_PUBLIC_USE_MOCK_API: ${NEXT_PUBLIC_USE_MOCK_API:-false}
+  #       NEXT_PUBLIC_USE_MOCK_DASHBOARD: ${NEXT_PUBLIC_USE_MOCK_DASHBOARD:-false}
+  #   container_name: atarag-frontend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - mock-api
+  #
+  # scraper:
+  #   # TODO (Person 1): Add Dockerfile at scraper/Dockerfile (optional — usually run on schedule)
+  #   build:
+  #     context: ../scraper
+  #     dockerfile: Dockerfile
+  #   container_name: atarag-scraper
+  #   environment:
+  #     BASE_URL: ${BASE_URL}
+  #   profiles:
+  #     - scraper
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: atarag-network

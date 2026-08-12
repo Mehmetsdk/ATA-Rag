@@ -3,6 +3,7 @@ import re
 from config import MAX_CHUNK_CHARS
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
+MIN_CHUNK_CHARS = 150
 
 
 def chunk_by_headings(markdown: str, page_title: str) -> list[dict]:
@@ -38,7 +39,58 @@ def chunk_by_headings(markdown: str, page_title: str) -> list[dict]:
             buffer.append(line)
     flush()
 
+    chunks = _dedupe_adjacent(chunks)
+    chunks = _merge_small_siblings(chunks)
     return _split_oversized(chunks)
+
+
+def _dedupe_adjacent(chunks: list[dict]) -> list[dict]:
+    """Drop a chunk if it's an exact repeat of the immediately preceding one.
+
+    Handles carousel/slider markup that renders the same card twice in the
+    raw HTML (e.g. a desktop + mobile duplicate of a program listing).
+    """
+    result: list[dict] = []
+    for chunk in chunks:
+        if result and result[-1]["section"] == chunk["section"] and result[-1]["markdown"] == chunk["markdown"]:
+            continue
+        result.append(chunk)
+    return result
+
+
+def _merge_small_siblings(chunks: list[dict]) -> list[dict]:
+    """Combine consecutive short leaf chunks that share the same parent heading.
+
+    A page listing dozens of programme cards (one heading each, a couple of
+    words of body text) produces near-empty, low-signal chunks. Grouping
+    them under their shared parent keeps retrieval meaningful.
+    """
+    merged: list[dict] = []
+    for chunk in chunks:
+        parent = chunk["section"].rsplit(" > ", 1)[0] if " > " in chunk["section"] else chunk["section"]
+        content = chunk["markdown"]
+        is_short = len(content) < MIN_CHUNK_CHARS
+
+        if (
+            merged
+            and merged[-1]["_short_group"]
+            and merged[-1]["_parent"] == parent
+            and is_short
+            and len(merged[-1]["markdown"]) + len(content) <= MAX_CHUNK_CHARS
+        ):
+            # Previous entry is itself a short sibling (or a group of them) —
+            # safe to fold this one in and relabel with their shared parent.
+            merged[-1]["markdown"] += "\n\n" + content
+            merged[-1]["section"] = parent
+        else:
+            # Previous entry is a long standalone chunk (or there is none) —
+            # never fold into it, or its precise breadcrumb would be lost.
+            merged.append({"section": chunk["section"], "markdown": content, "_parent": parent, "_short_group": is_short})
+
+    for m in merged:
+        del m["_parent"]
+        del m["_short_group"]
+    return merged
 
 
 def _split_oversized(chunks: list[dict]) -> list[dict]:
