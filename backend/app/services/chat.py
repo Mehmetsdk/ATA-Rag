@@ -5,12 +5,16 @@ from __future__ import annotations
 import time
 from typing import Protocol
 
+from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models import QueryLog
 from app.schemas import ChatRequest, ChatResponse, Source
 from app.services.history import build_retrieval_query
 from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
+
+_LANG_NAMES = {"en": "English", "pl": "Polish"}
 
 NO_VERIFIED_ANSWER = (
     "I couldn't find enough verified information in the indexed university sources "
@@ -102,11 +106,69 @@ async def default_answer_generator(
     )
 
 
+async def llm_answer_generator(
+    request: ChatRequest,
+    retrieval_query: str,
+    chunks: list[RetrievedChunk],
+) -> ChatGenerationResult:
+    """Grounded answer via LLM. Reads (often Polish) sources, answers in the user's language."""
+    if not chunks:
+        return ChatGenerationResult(answer=NO_VERIFIED_ANSWER, sources=[], confidence=None)
+
+    sources = _chunks_to_sources(chunks)
+    if not sources:
+        return ChatGenerationResult(answer=NO_VERIFIED_ANSWER, sources=[], confidence=None)
+
+    settings = get_settings()
+    if not settings.openai_api_key:
+        # No LLM key available — fall back to the excerpt template.
+        return await default_answer_generator(request, retrieval_query, chunks)
+
+    lang_name = _LANG_NAMES.get(request.language, "English")
+    blocks = []
+    for i, c in enumerate(chunks[:5], start=1):
+        header = " > ".join(x for x in [c.title, c.section] if x)
+        blocks.append(f"[{i}] {header}\n{c.text[:700]}")
+    context = "\n\n".join(blocks)
+
+    system = (
+        "You are the assistant for Akademia Techniczno-Artystyczna (ATA), a Polish university. "
+        "Answer the user's question using ONLY the provided context excerpts from the university "
+        f"website. The context is often written in Polish, but you MUST always answer in {lang_name}. "
+        "Be concise and factual. If the context does not contain the answer, say you could not find it "
+        "in the university sources. Never invent details."
+    )
+    user = f"Question: {request.question}\n\nContext:\n{context}"
+
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    try:
+        resp = await client.chat.completions.create(
+            model=settings.chat_model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.2,
+        )
+        answer = (resp.choices[0].message.content or "").strip()
+    except Exception:
+        return await default_answer_generator(request, retrieval_query, chunks)
+
+    if not answer:
+        return await default_answer_generator(request, retrieval_query, chunks)
+
+    return ChatGenerationResult(
+        answer=answer,
+        sources=sources,
+        confidence=_confidence_from_chunks(chunks),
+    )
+
+
 async def handle_chat(
     request: ChatRequest,
     session: AsyncSession,
     *,
-    answer_generator: AnswerGenerator = default_answer_generator,
+    answer_generator: AnswerGenerator = llm_answer_generator,
 ) -> ChatResponse:
     started = time.perf_counter()
 
