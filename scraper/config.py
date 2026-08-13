@@ -1,5 +1,5 @@
 # TODO: Gerçek üniversite domaini netleşince güncelle
-BASE_URL = "https://example-university.edu"
+BASE_URL = "https://akademiata.pl"
 
 INCLUDE_KEYWORDS = [
     "admission", "rekrutacja",
