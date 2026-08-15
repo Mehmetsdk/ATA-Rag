@@ -18,11 +18,16 @@ from config import (
 
 def _allowed_by_robots(base_url: str) -> urllib.robotparser.RobotFileParser:
     rp = urllib.robotparser.RobotFileParser()
-    rp.set_url(urljoin(base_url, "/robots.txt"))
+    robots_url = urljoin(base_url, "/robots.txt")
+    rp.set_url(robots_url)
     try:
-        rp.read()
-    except Exception:
-        pass
+        resp = requests.get(robots_url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT_SECONDS)
+        if resp.status_code == 200:
+            rp.parse(resp.text.splitlines())
+        else:
+            rp.parse([])
+    except requests.RequestException:
+        rp.parse([])
     return rp
 
 
