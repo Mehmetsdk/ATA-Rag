@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Protocol
 
@@ -111,7 +112,11 @@ async def llm_answer_generator(
     retrieval_query: str,
     chunks: list[RetrievedChunk],
 ) -> ChatGenerationResult:
-    """Grounded answer via LLM. Reads (often Polish) sources, answers in the user's language."""
+    """Grounded answer via LLM. Reads (often Polish) sources, answers in the user's language.
+
+    Never falls back to raw excerpt text: on a missing key or a failed LLM call we
+    return the honest no-answer message instead of leaking untranslated source text.
+    """
     if not chunks:
         return ChatGenerationResult(answer=NO_VERIFIED_ANSWER, sources=[], confidence=None)
 
@@ -121,8 +126,8 @@ async def llm_answer_generator(
 
     settings = get_settings()
     if not settings.openai_api_key:
-        # No LLM key available — fall back to the excerpt template.
-        return await default_answer_generator(request, retrieval_query, chunks)
+        logging.warning("OPENAI_API_KEY not set; cannot call LLM for answer generation")
+        return ChatGenerationResult(answer=NO_VERIFIED_ANSWER, sources=[], confidence=None)
 
     lang_name = _LANG_NAMES.get(request.language, "English")
     blocks = []
@@ -135,8 +140,9 @@ async def llm_answer_generator(
         "You are the assistant for Akademia Techniczno-Artystyczna (ATA), a Polish university. "
         "Answer the user's question using ONLY the provided context excerpts from the university "
         f"website. The context is often written in Polish, but you MUST always answer in {lang_name}. "
-        "Be concise and factual. If the context does not contain the answer, say you could not find it "
-        "in the university sources. Never invent details."
+        "Write plain, fluent prose — never include markdown heading markers (#, ##, ###) from the "
+        "source text. Be concise and factual. If the context does not contain the answer, say you "
+        "could not find it in the university sources. Never invent details."
     )
     user = f"Question: {request.question}\n\nContext:\n{context}"
 
@@ -148,14 +154,15 @@ async def llm_answer_generator(
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=0.2,
+            temperature=0.0,
         )
         answer = (resp.choices[0].message.content or "").strip()
     except Exception:
-        return await default_answer_generator(request, retrieval_query, chunks)
+        logging.exception("LLM call failed in llm_answer_generator")
+        return ChatGenerationResult(answer=NO_VERIFIED_ANSWER, sources=[], confidence=None)
 
     if not answer:
-        return await default_answer_generator(request, retrieval_query, chunks)
+        return ChatGenerationResult(answer=NO_VERIFIED_ANSWER, sources=[], confidence=None)
 
     return ChatGenerationResult(
         answer=answer,
