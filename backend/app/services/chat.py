@@ -4,11 +4,6 @@ from __future__ import annotations
 
 import time
 from typing import Protocol
-import logging
-
-from openai import AsyncOpenAI
-
-from app.config import get_settings
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,87 +89,14 @@ async def default_answer_generator(
             sources=[],
             confidence=None,
         )
-    # Build a concise context from the top nearby chunks (3-5 if available).
-    if len(chunks) >= 3:
-        take = min(5, len(chunks))
-    else:
-        take = len(chunks)
 
-    context_parts: list[str] = []
-    for c in chunks[:take]:
-        if c.text:
-            context_parts.append(c.text.strip())
-    context = "\n\n".join(context_parts)
-
-    settings = get_settings()
-    if not settings.openai_api_key:
-        # If no API key configured, fallback to honest no-answer behavior.
-        logging.warning("OPENAI_API_KEY not set; cannot call LLM for answer generation")
-        return ChatGenerationResult(
-            answer=NO_VERIFIED_ANSWER,
-            sources=[],
-            confidence=None,
-        )
-
-    system_prompt = (
-        "You are a university assistant. ONLY answer based on the provided context. "
-        "Answer in English, Turkish, or Polish in the same language as the question. "
-        "If the context does not contain the information, say you don't know. "
-        "Never include markdown heading markers (#, ##, ###) in your answer — write plain, fluent text. "
-        "Be short and concise. "
-        "If you cannot answer from the context, respond with EXACTLY this phrase and nothing else: NO_ANSWER_FOUND"
+    excerpt = chunks[0].text[:400]
+    answer = (
+        f"Based on indexed university sources for “{request.question}”: "
+        f"{excerpt}… Review the linked sources for full details."
     )
-
-    user_prompt = f"Context:\n{context}\n\nQuestion: {request.question}"
-
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
-    try:
-        resp = await client.chat.completions.create(
-            model=settings.chat_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.0,
-        )
-        # Extract the assistant text
-        assistant_message = None
-        if resp and getattr(resp, "choices", None):
-            choice = resp.choices[0]
-            # message may be an object with .message.content or .message.content attribute
-            msg = getattr(choice, "message", None)
-            if msg is not None:
-                assistant_message = getattr(msg, "content", None)
-            # Fallback: sometimes message is a dict-like
-            if assistant_message is None and isinstance(msg, dict):
-                assistant_message = msg.get("content")
-
-        if not assistant_message:
-            return ChatGenerationResult(
-                answer=NO_VERIFIED_ANSWER,
-                sources=[],
-                confidence=None,
-            )
-
-        # If the model returns the sentinel, treat as no verified answer.
-        if assistant_message.strip() == "NO_ANSWER_FOUND":
-            return ChatGenerationResult(
-                answer=NO_VERIFIED_ANSWER,
-                sources=[],
-                confidence=None,
-            )
-
-        answer_text = assistant_message
-    except Exception as exc:  # network, rate-limit, etc.
-        logging.exception("LLM call failed in default_answer_generator: %s", exc)
-        return ChatGenerationResult(
-            answer=NO_VERIFIED_ANSWER,
-            sources=[],
-            confidence=None,
-        )
-
     return ChatGenerationResult(
-        answer=answer_text,
+        answer=answer,
         sources=sources,
         confidence=_confidence_from_chunks(chunks),
     )
