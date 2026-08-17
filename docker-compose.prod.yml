@@ -2,8 +2,6 @@
 #
 # Extends the local compose file with production-oriented settings.
 # Use with Coolify or: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-#
-# Person 4 (Infrastructure) — teammate services remain commented until ready.
 
 services:
   postgres:
@@ -11,24 +9,16 @@ services:
     # Coolify manages volumes — do not expose postgres port in production
     ports: !reset []
 
-  mock-api:
+  backend:
     restart: always
-    # TODO (Person 2): Remove mock-api when real backend is deployed
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
 
-  # backend:
-  #   restart: always
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 512M
-  #
-  # frontend:
-  #   restart: always
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 512M
+  frontend:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
