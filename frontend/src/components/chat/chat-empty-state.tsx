@@ -6,7 +6,7 @@ export function ChatEmptyState({ compact = false }: ChatEmptyStateProps) {
   if (compact) {
     return (
       <div className="mb-2 min-w-0">
-        <p className="text-sm text-[var(--muted-foreground)] break-words">
+        <p className="text-sm text-[var(--muted-foreground)] break-words font-serif">
           Answers are generated from indexed university pages and documents.
         </p>
       </div>
@@ -25,11 +25,11 @@ export function ChatEmptyState({ compact = false }: ChatEmptyStateProps) {
         >
           Ask about the university
         </h1>
-        <p className="mt-3 text-sm leading-relaxed text-[var(--muted-foreground)] sm:text-base">
-          Get information about admissions, tuition, study programmes, university offices,
-          regulations, scholarships, and student services.
+        <p className="mt-3 text-sm leading-relaxed text-[var(--muted-foreground)] sm:text-base font-serif">
+          Get information about admissions, tuition, study programmes,
+          university offices, regulations, scholarships, and student services.
         </p>
-        <p className="mt-4 text-xs text-[var(--muted-foreground)] sm:text-sm">
+        <p className="mt-4 text-xs text-[var(--muted-foreground)] sm:text-sm font-serif">
           Answers are generated from indexed university pages and documents.
         </p>
       </div>

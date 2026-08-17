@@ -25,12 +25,10 @@ export function ChatPage() {
 
   return (
     <div
-      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 bg-surface rounded-3xl shadow-sm p-4 sm:p-6"
       aria-busy={isLoading || undefined}
     >
-      {hasMessages ? (
-        <h1 className="sr-only">{PRODUCT_NAME}</h1>
-      ) : null}
+      {hasMessages ? <h1 className="sr-only">{PRODUCT_NAME}</h1> : null}
 
       <div className="flex min-w-0 items-start justify-between gap-3">
         {hasMessages ? <ChatEmptyState compact /> : null}
@@ -45,7 +43,7 @@ export function ChatPage() {
             aria-label="Reset conversation"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            Reset
+            <span className="font-serif">Reset</span>
           </Button>
         ) : null}
       </div>

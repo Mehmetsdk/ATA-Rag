@@ -24,12 +24,19 @@ export function SourceItem({ source, index }: SourceItemProps) {
         className="group flex min-w-0 gap-3 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         aria-label={`Source ${index + 1}: ${source.title} (opens in a new tab)`}
       >
-        <span className="mt-0.5 shrink-0 text-[var(--muted-foreground)]" aria-hidden="true">
-          {isPdf ? <FileText className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+        <span
+          className="mt-0.5 shrink-0 text-[var(--muted-foreground)]"
+          aria-hidden="true"
+        >
+          {isPdf ? (
+            <FileText className="h-4 w-4" />
+          ) : (
+            <Globe className="h-4 w-4" />
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-start justify-between gap-2">
-            <span className="text-sm font-medium text-[var(--foreground)] break-words [overflow-wrap:anywhere]">
+            <span className="text-sm font-medium text-[var(--foreground)] break-words [overflow-wrap:anywhere] font-serif">
               {source.title}
             </span>
             <ExternalLink
@@ -38,17 +45,17 @@ export function SourceItem({ source, index }: SourceItemProps) {
             />
           </span>
           {hostname ? (
-            <span className="mt-0.5 block text-xs text-[var(--muted-foreground)] break-all">
+            <span className="mt-0.5 block text-xs text-[var(--muted-foreground)] break-all font-serif">
               {hostname}
             </span>
           ) : null}
           {source.section ? (
-            <span className="mt-1 block text-xs text-[var(--muted-foreground)] break-words">
+            <span className="mt-1 block text-xs text-[var(--muted-foreground)] break-words font-serif">
               Section: {source.section}
             </span>
           ) : null}
           {source.excerpt ? (
-            <span className="mt-1 block text-xs leading-relaxed text-[var(--muted-foreground)] line-clamp-2 break-words">
+            <span className="mt-1 block text-xs leading-relaxed text-[var(--muted-foreground)] line-clamp-2 break-words font-serif">
               {source.excerpt}
             </span>
           ) : null}

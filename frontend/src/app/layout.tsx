@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { PRODUCT_NAME, PRODUCT_SUBTITLE } from "@/lib/chat/constants";
 import "./globals.css";
 
@@ -49,11 +50,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${bodyFont.variable} ${displayFont.variable} overflow-x-hidden antialiased`}
       >
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

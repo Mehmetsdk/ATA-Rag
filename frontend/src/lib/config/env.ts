@@ -80,3 +80,8 @@ export function buildChatEndpoint(apiBaseUrl: string): string {
 export function buildFeedbackEndpoint(apiBaseUrl: string): string {
   return buildApiPath(apiBaseUrl, "/api/feedback");
 }
+
+/** Build the dashboard stats endpoint URL. */
+export function buildDashboardStatsEndpoint(apiBaseUrl: string): string {
+  return buildApiPath(apiBaseUrl, "/api/dashboard/stats");
+}
