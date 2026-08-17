@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Protocol
-import logging
 
 from openai import AsyncOpenAI
-
-from app.config import get_settings
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models import QueryLog
 from app.schemas import ChatRequest, ChatResponse, Source
 from app.services.history import build_retrieval_query
 from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
+
+_LANG_NAMES = {"en": "English", "pl": "Polish"}
 
 NO_VERIFIED_ANSWER = (
     "I couldn't find enough verified information in the indexed university sources "
@@ -116,9 +116,11 @@ async def default_answer_generator(
             confidence=None,
         )
 
+    lang_name = _LANG_NAMES.get(request.language, "English")
     system_prompt = (
         "You are a university assistant. ONLY answer based on the provided context. "
-        "Answer in English, Turkish, or Polish in the same language as the question. "
+        f"The context may be written in Polish, but you MUST always answer in {lang_name} "
+        "(the user's selected language) — never answer in the context's language instead. "
         "If the context does not contain the information, say you don't know. "
         "Never include markdown heading markers (#, ##, ###) in your answer — write plain, fluent text. "
         "Be short and concise. "
@@ -137,17 +139,7 @@ async def default_answer_generator(
             ],
             temperature=0.0,
         )
-        # Extract the assistant text
-        assistant_message = None
-        if resp and getattr(resp, "choices", None):
-            choice = resp.choices[0]
-            # message may be an object with .message.content or .message.content attribute
-            msg = getattr(choice, "message", None)
-            if msg is not None:
-                assistant_message = getattr(msg, "content", None)
-            # Fallback: sometimes message is a dict-like
-            if assistant_message is None and isinstance(msg, dict):
-                assistant_message = msg.get("content")
+        assistant_message = resp.choices[0].message.content if resp.choices else None
 
         if not assistant_message:
             return ChatGenerationResult(
