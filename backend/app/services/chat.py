@@ -103,7 +103,8 @@ async def default_answer_generator(
     context_parts: list[str] = []
     for c in chunks[:take]:
         if c.text:
-            context_parts.append(c.text.strip())
+            label = c.title or c.url or "Unknown source"
+            context_parts.append(f"[Source: {label}]\n{c.text.strip()}")
     context = "\n\n".join(context_parts)
 
     settings = get_settings()
@@ -119,8 +120,14 @@ async def default_answer_generator(
     system_prompt = (
         "You are a university assistant. ONLY answer based on the provided context. "
         "Answer in English, Turkish, or Polish in the same language as the question. "
-        "If the context does not contain the information, say you don't know. "
-        "Never include markdown heading markers (#, ##, ###) in your answer — write plain, fluent text. "
+        "IMPORTANT: If the context contains ANY tuition fee, price, or cost figure "
+        "for a program that could reasonably be what the user is asking about (even "
+        "if the program's exact name differs from what the user typed), you MUST use "
+        "that figure in your answer. State the program's actual name as it appears in "
+        "the context, then give the price. Chunks from the SAME [Source: ...] label "
+        "describe the same program, even if they don't repeat the name. Do not say "
+        "you don't know if a relevant price exists anywhere in the context. "
+        "Never include markdown heading markers (#, ##, ###) — write plain, fluent text. "
         "Be short and concise. "
         "If you cannot answer from the context, respond with EXACTLY this phrase and nothing else: NO_ANSWER_FOUND"
     )
