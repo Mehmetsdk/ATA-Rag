@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #f5f4f1;
@@ -10,6 +11,8 @@
   --primary: #1c3557;
   --primary-hover: #162a45;
   --primary-foreground: #f7f6f3;
+  --focus-accent: #f26b1d;
+  --user-bubble: #f26b1d;
   --accent: #9a7b3c;
   --accent-soft: #f3ecdc;
   --danger: #a61b1b;
@@ -22,8 +25,37 @@
   --warning: #8a5a12;
   --warning-soft: #f8efdf;
   --warning-border: #e6d2a8;
-  --ring: #2f4f78;
+  --ring: #f26b1d;
   --shadow-sm: 0 1px 2px rgb(26 36 51 / 0.05);
+}
+
+.dark {
+  --background: #17140f;
+  --surface: #221d16;
+  --surface-muted: #2b241b;
+  --foreground: #f2ede4;
+  --muted-foreground: #b8ac99;
+  --border: #3a3226;
+  --primary: #f26b1d;
+  --primary-hover: #d9601a;
+  --primary-foreground: #17140f;
+  --focus-accent: #f26b1d;
+  --user-bubble: #f26b1d;
+  --accent: #d9a94a;
+  --accent-soft: #3a2f1c;
+  --danger: #e0554f;
+  --danger-hover: #c94943;
+  --danger-soft: #3a1f1c;
+  --danger-border: #5c2e29;
+  --success: #3fae7c;
+  --success-soft: #1c3a2c;
+  --success-border: #2e5c44;
+  --warning: #d9a94a;
+  --warning-soft: #3a2f1c;
+  --warning-border: #5c4a2e;
+  --ring: #f26b1d;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -39,13 +71,6 @@
   --color-danger: var(--danger);
   --font-sans: var(--font-body), "Segoe UI", sans-serif;
   --font-serif: var(--font-display), Georgia, serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  /* Structural dark tokens prepared for a future dark theme. Light mode remains default. */
-  :root {
-    color-scheme: light;
-  }
 }
 
 * {
@@ -64,6 +89,19 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.bg-app-gradient {
+  background-image: url("/bg-gradient.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.dark .bg-app-gradient {
+  background-image: none;
+  background-color: var(--background);
+}
+
 ::selection {
   background: color-mix(in srgb, var(--primary) 18%, white);
   color: var(--foreground);
@@ -72,6 +110,9 @@ body {
 :focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+.chat-textarea:focus-visible {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

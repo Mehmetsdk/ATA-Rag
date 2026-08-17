@@ -38,8 +38,10 @@ export function ChatMessageView({
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[min(85%,36rem)] rounded-2xl rounded-br-md bg-[var(--primary)] px-4 py-2.5 text-sm leading-relaxed text-[var(--primary-foreground)]">
-          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
+        <div className="max-w-[min(85%,36rem)] rounded-2xl rounded-br-md bg-[var(--user-bubble)] px-4 py-2.5 text-sm leading-relaxed text-[var(--primary-foreground)]">
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+            {message.content}
+          </p>
         </div>
       </div>
     );
@@ -84,7 +86,7 @@ export function ChatMessageView({
       aria-label="Assistant response"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+        <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)] font-serif">
           Answer
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -107,17 +109,22 @@ export function ChatMessageView({
             ) : (
               <Copy className="h-3.5 w-3.5" aria-hidden="true" />
             )}
-            <span className="text-xs">{copied ? "Copied" : "Copy"}</span>
+            <span className="text-xs font-serif">
+              {copied ? "Copied" : "Copy"}
+            </span>
           </Button>
         </div>
       </div>
 
-      <div className="mt-3 text-sm leading-relaxed text-[var(--foreground)] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+      <div className="mt-3 text-sm leading-relaxed text-[var(--foreground)] whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-serif">
         {message.content}
       </div>
 
       {message.sources && message.sources.length > 0 ? (
-        <SourceList sources={message.sources} demo={getPublicEnv().useMockApi} />
+        <SourceList
+          sources={message.sources}
+          demo={getPublicEnv().useMockApi}
+        />
       ) : null}
 
       {showFeedback ? (
@@ -126,7 +133,9 @@ export function ChatMessageView({
           role="group"
           aria-label="Answer feedback"
         >
-          <span className="text-xs text-[var(--muted-foreground)]">Was this helpful?</span>
+          <span className="text-xs text-[var(--muted-foreground)] font-serif">
+            Was this helpful?
+          </span>
           <Button
             type="button"
             variant="ghost"
@@ -138,10 +147,10 @@ export function ChatMessageView({
             onClick={() => onFeedback?.(message.id, "up")}
           >
             <ThumbsUp
-              className={`h-3.5 w-3.5 ${message.feedbackRating === "up" ? "text-[var(--primary)]" : ""}`}
+              className={`h-3.5 w-3.5 ${message.feedbackRating === "up" ? "text-[var(--focus-accent)]" : ""}`}
               aria-hidden="true"
             />
-            <span className="text-xs">Yes</span>
+            <span className="text-xs font-serif">Yes</span>
           </Button>
           <Button
             type="button"
@@ -154,17 +163,24 @@ export function ChatMessageView({
             onClick={() => onFeedback?.(message.id, "down")}
           >
             <ThumbsDown
-              className={`h-3.5 w-3.5 ${message.feedbackRating === "down" ? "text-[var(--primary)]" : ""}`}
+              className={`h-3.5 w-3.5 ${message.feedbackRating === "down" ? "text-[var(--focus-accent)]" : ""}`}
               aria-hidden="true"
             />
-            <span className="text-xs">No</span>
+            <span className="text-xs font-serif">No</span>
           </Button>
           {message.feedbackRating && !message.feedbackError ? (
-            <span className="text-xs text-[var(--muted-foreground)]">Thanks for your feedback</span>
+            <span className="text-xs text-[var(--muted-foreground)] font-serif">
+              Thanks for your feedback
+            </span>
           ) : null}
           {message.feedbackError ? (
-            <div className="flex w-full flex-wrap items-center gap-2" role="alert">
-              <span className="text-xs text-[var(--danger)]">{message.feedbackError}</span>
+            <div
+              className="flex w-full flex-wrap items-center gap-2"
+              role="alert"
+            >
+              <span className="text-xs text-[var(--danger)]">
+                {message.feedbackError}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
@@ -172,9 +188,11 @@ export function ChatMessageView({
                 className="h-8 px-2 focus-visible:ring-2"
                 disabled={feedbackBusy}
                 aria-label="Retry feedback"
-                onClick={() => onFeedback?.(message.id, resolveFeedbackRetryRating(message))}
+                onClick={() =>
+                  onFeedback?.(message.id, resolveFeedbackRetryRating(message))
+                }
               >
-                <span className="text-xs">Retry</span>
+                <span className="text-xs font-serif">Retry</span>
               </Button>
             </div>
           ) : null}

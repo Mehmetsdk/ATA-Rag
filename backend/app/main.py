@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import chat, feedback
+from app.routers import chat, dashboard, feedback
 
 
 @asynccontextmanager
@@ -27,7 +27,7 @@ app.add_middleware(
 
 app.include_router(chat.router)
 app.include_router(feedback.router)
-
+app.include_router(dashboard.router)
 
 @app.get("/health")
 def health() -> dict[str, str]:

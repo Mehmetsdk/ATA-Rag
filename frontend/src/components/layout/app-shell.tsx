@@ -13,7 +13,7 @@ type AppShellProps = {
  */
 export function AppShell({ children, activeNav = "chat" }: AppShellProps) {
   return (
-    <div className="flex min-h-dvh min-w-0 flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]">
+    <div className="flex min-h-dvh min-w-0 flex-col overflow-x-hidden bg-app-gradient text-[var(--foreground)]">
       <AppHeader activeNav={activeNav} />
       <main className="mx-auto flex w-full min-w-0 max-w-3xl min-h-0 flex-1 flex-col px-4 pb-4 pt-4 sm:px-6 sm:pt-6">
         {children}
