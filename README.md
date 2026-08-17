@@ -1,83 +1,100 @@
 # ATA-Rag
 
-RAG tabanlı bir üniversite asistanı — [akademiata.pl](https://akademiata.pl) (Akademia Techniczno-Artystyczna) sitesinden otomatik olarak toplanan bilgilerle, öğrencilerin sorularını (kabul, ücretler, programlar, iletişim vb.) doğal dilde yanıtlar.
+[akademiata.pl](https://akademiata.pl) (Akademia Techniczno-Artystyczna) için RAG tabanlı bir üniversite asistanı. Öğrenciler ve adaylar kabul, ücretler, programlar, iletişim gibi konularda doğal dilde soru sorar; sistem cevabı yalnızca sitenin gerçek içeriğinden, kaynak göstererek üretir.
 
 ## Nasıl çalışır
 
 ```
 akademiata.pl
       │
-  Scraper (Python)                 scraper/
-      │  HTML → Markdown → başlık bazlı chunk'lar
+  Scraper (Python)                          scraper/
+      │  HTML → temiz Markdown → başlık bazlı chunk'lar
       ▼
 scraper/data/chunks.jsonl
       │
-  Embedding + ingestion
+  Embedding (OpenAI) + ingestion
       ▼
 PostgreSQL + pgvector (Supabase)
       │
       ▼
-FastAPI backend                    backend/
-      │  soru → embed → pgvector arama → LLM ile
-      │  kaynaklı, soru diliyle uyumlu cevap üretimi
+FastAPI backend                             backend/
+      │  soru → embed → pgvector benzerlik araması
+      │  → LLM ile kaynaklı, soru diliyle uyumlu cevap
+      │  → query_logs + answer_feedback kaydı
       ▼
-Next.js frontend (+ dashboard)     frontend/, dashboard/
+Next.js frontend (chat + /dashboard)         frontend/
       │
    Kullanıcı
 ```
 
-## Klasör yapısı
+Kaynak sitenin içeriği ağırlıklı olarak **Lehçe**; backend soruyu hangi dilde sorulduysa (İngilizce/Lehçe) o dilde, Lehçe kaynaklardan sentezleyerek cevaplar.
+
+## Repo yapısı
 
 | Klasör | İçerik |
 |---|---|
-| `scraper/` | Web crawler, HTML→Markdown, chunking, PDF çıkarma |
+| `scraper/` | Web crawler, HTML→Markdown, başlık bazlı chunking, PDF çıkarma |
 | `backend/` | FastAPI: `/api/chat`, `/api/feedback`, `/api/dashboard/stats`, pgvector retrieval, LLM cevap üretimi |
 | `frontend/` | Next.js sohbet arayüzü + `/dashboard` rotası (entegre edildi) |
 | `dashboard/` | Yönetim paneli bileşenlerinin orijinal kaynağı (artık `frontend/src/app/dashboard`'a taşındı) |
-| `observability/` | Backend için metrik/log paketi |
-| `integration/` | Dashboard sözleşmesi (`CONTRACTS_DASHBOARD.md`) — backend artık `/api/dashboard/stats` ile gerçek istatistik (soru sayısı, cevapsız kalan sorular, ortalama confidence) döndürüyor |
-| `coolify/` | Deployment dokümantasyonu |
-| `docker-compose.yml` / `docker-compose.prod.yml` | Yerel/production servis orkestrasyon |
+| `observability/` | Backend için opsiyonel metrik/log paketi (bkz. Bilinen eksikler) |
+| `integration/` | Dashboard API sözleşmesi (`CONTRACTS_DASHBOARD.md`), geçici mock server |
+| `coolify/` | Coolify deployment dokümantasyonu |
+| `docker-compose.yml` / `docker-compose.prod.yml` | Servis orkestrasyonu (bkz. Bilinen eksikler) |
 
-Sözleşmeler (chunk formatı, DB şeması, API contract) için: [CONTRACTS.md](CONTRACTS.md)
+Ekipler arası sözleşmeler (chunk formatı, DB şeması, `/api/chat` ve `/api/feedback` contract'ı) için: **[CONTRACTS.md](CONTRACTS.md)**
 
 ## Hızlı başlangıç (yerel geliştirme)
 
-**Scraper**
+**1. Scraper — veri topla**
 ```bash
 cd scraper
 pip install -r requirements.txt
-python main.py --mode live
+python main.py --mode live        # gerçek domain: config.py > BASE_URL
 ```
+Çıktı: `scraper/data/chunks.jsonl`
 
-**Backend**
+**2. Backend — DB + RAG**
 ```bash
 cd backend
 pip install -r requirements.txt
-cp ../.env.example .env   # DATABASE_URL, OPENAI_API_KEY doldurulmalı
+cp ../.env.example .env           # DATABASE_URL (Postgres+pgvector), OPENAI_API_KEY doldurulmalı
 uvicorn app.main:app --reload --port 8000
 ```
+İlk açılışta `CREATE EXTENSION IF NOT EXISTS vector` ve tablolar otomatik oluşturulur. `chunks.jsonl`'ın embed edilip DB'ye yüklenmesi ayrı bir ingestion adımıdır (bkz. `backend/README.md`).
 
-**Frontend**
+**3. Frontend**
 ```bash
 cd frontend
 npm install
-npm run dev   # http://localhost:3000
+cp .env.example .env.local
+npm run dev                       # http://localhost:3000
 ```
+`NEXT_PUBLIC_USE_MOCK_API=false` + `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000` ile gerçek backend'e bağlanır; `true` ile mock veriyle çalışır.
 
-`NEXT_PUBLIC_USE_MOCK_API=false` yapılırsa frontend gerçek backend'e bağlanır.
+Her servisin kendi `README.md`'sinde daha fazla detay var: [`scraper/README.md`](scraper/README.md), [`backend/README.md`](backend/README.md), [`frontend/README.md`](frontend/README.md).
 
 ## Test
 
 ```bash
-cd scraper && pytest
-cd backend && pytest   # bazı testler için gerçek Postgres (TEST_DATABASE_URL) gerekir
+cd scraper  && pip install -r requirements-dev.txt && pytest
+cd backend  && TEST_DATABASE_URL=<postgres-url> python -m pytest -q   # DB testleri gercek Postgres ister
 cd frontend && npm test
 ```
 
 ## Deployment
 
-Coolify üzerinden deploy talimatları için [coolify/DEPLOYMENT.md](coolify/DEPLOYMENT.md).
+Coolify üzerinden deploy talimatları: [coolify/DEPLOYMENT.md](coolify/DEPLOYMENT.md).
+
+**Deploy etmeden önce bilinmesi gerekenler** (bkz. aşağıdaki "Bilinen eksikler"): `docker-compose.yml`'da `backend`/`frontend` servisleri hâlâ yorum satırı halinde, `frontend/Dockerfile` henüz yok — deployment dokümanı hazır ama gerçek servisler compose dosyasına henüz bağlanmadı.
+
+## Bilinen eksikler / yapılacaklar
+
+- `docker-compose.yml`: `backend` ve `frontend` servisleri hâlâ devre dışı (yorumlu), sadece geçici `mock-api` aktif — Coolify'a gerçek deploy'dan önce bunların açılması gerekiyor.
+- `frontend/Dockerfile` yok (`backend/Dockerfile` var).
+- `observability/` paketi hazır ama backend'e henüz bağlanmadı (`/health`, `/metrics` gözlemlenebilirlik middleware'i entegre edilmedi).
+- Bazı ücret/fiyat bilgileri sitede JS ile dinamik render edildiği için (`SPRAWDŹ CENNIK` butonu) düz HTML scraping bunları yakalayamıyor — ayrı bir dinamik-render aracıyla ele alınıyor (`backend/fetch_dynamic_prices.py`).
+- Scraper `INCLUDE_KEYWORDS` listesi zaman zaman site menüsüne göre kalibre edilmeli.
 
 ## Ekip
 
@@ -85,6 +102,6 @@ Coolify üzerinden deploy talimatları için [coolify/DEPLOYMENT.md](coolify/DEP
 |---|---|
 | Crawler & Veri Toplama | Site/PDF crawl, temizleme, chunk'lama |
 | Backend & RAG | FastAPI, pgvector, embedding, LLM entegrasyonu |
-| Frontend | Next.js sohbet arayüzü |
+| Frontend | Next.js sohbet arayüzü + dashboard |
 | Dashboard & Deployment | Yönetim paneli, Docker, Coolify |
 | Test & QA | Uçtan uca test, doğruluk/performans kontrolü
