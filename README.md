@@ -31,11 +31,11 @@ Next.js frontend (+ dashboard)     frontend/, dashboard/
 | Klasör | İçerik |
 |---|---|
 | `scraper/` | Web crawler, HTML→Markdown, chunking, PDF çıkarma |
-| `backend/` | FastAPI: `/api/chat`, `/api/feedback`, pgvector retrieval, LLM cevap üretimi |
-| `frontend/` | Next.js sohbet arayüzü |
-| `dashboard/` | Yönetim paneli bileşenleri (frontend'e entegre edilecek, bkz. `dashboard/INTEGRATION.md`) |
+| `backend/` | FastAPI: `/api/chat`, `/api/feedback`, `/api/dashboard/stats`, pgvector retrieval, LLM cevap üretimi |
+| `frontend/` | Next.js sohbet arayüzü + `/dashboard` rotası (entegre edildi) |
+| `dashboard/` | Yönetim paneli bileşenlerinin orijinal kaynağı (artık `frontend/src/app/dashboard`'a taşındı) |
 | `observability/` | Backend için metrik/log paketi |
-| `integration/` | Geçici mock API + dashboard sözleşmesi (`CONTRACTS_DASHBOARD.md`) |
+| `integration/` | Dashboard sözleşmesi (`CONTRACTS_DASHBOARD.md`) — backend artık `/api/dashboard/stats` ile gerçek istatistik (soru sayısı, cevapsız kalan sorular, ortalama confidence) döndürüyor |
 | `coolify/` | Deployment dokümantasyonu |
 | `docker-compose.yml` / `docker-compose.prod.yml` | Yerel/production servis orkestrasyon |
 
